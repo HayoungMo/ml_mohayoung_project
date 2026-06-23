@@ -319,7 +319,7 @@ pred_group = classification_model.predict(input_df)[0]
 group_title, group_detail = group_message(pred_group)
 score_delta = pred_score - g3_mean
 
-st.markdown('<div class="app-title">학생 생활패턴 기반 성적 예측</div>', unsafe_allow_html=True)
+st.markdown('<div class="app-title">포르투갈 학생 생활패턴 기반 성적 예측</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="muted">Student Performance Dataset 기반 머신러닝 개인 프로젝트</div>',
     unsafe_allow_html=True,
