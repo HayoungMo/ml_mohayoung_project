@@ -444,9 +444,10 @@ with tab_result:
 with tab_model:
     st.subheader("모델 비교 핵심")
     st.info(
-        "모델 A는 생활패턴과 학교생활 정보만 사용하고, 모델 B는 여기에 G1, G2 과거 성적을 추가합니다. "
-        "결과적으로 Model B가 더 좋은 성능을 보였으며, 이는 G1/G2가 G3와 강하게 연결되어 있기 때문입니다."
+        "모델 A는 생활패턴과 학교생활 정보만 사용하고,모델 B는 여기에 G1, G2 과거 성적을 추가합니다.\n\n"
+        "결과적으로 Model B가 더 좋은 성능을 보였으며,이는 G1/G2가 G3와 강하게 연결되어 있기 때문입니다."
     )
+    
 
     if reg_result is not None:
         best_reg = reg_result.sort_values(["RMSE", "MAE"], ascending=True).iloc[0]
