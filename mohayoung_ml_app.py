@@ -175,7 +175,13 @@ st.markdown(
 
 df = load_data()
 regression_model, classification_model, x_train = train_models(df)
-row = default_row(df)
+default_student_row = default_row(df)
+if "student_row" not in st.session_state:
+    st.session_state.student_row = default_student_row.copy()
+else:
+    for key, value in default_student_row.items():
+        st.session_state.student_row.setdefault(key, value)
+row = st.session_state.student_row.copy()
 
 grade_counts = df["grade_group"].value_counts().reindex(["위험", "보통", "우수"]).fillna(0).astype(int)
 g3_mean = df["G3"].mean()
@@ -183,78 +189,97 @@ age_min, age_max = int(df["age"].min()), int(df["age"].max())
 failures_min, failures_max = int(df["failures"].min()), int(df["failures"].max())
 absences_min, absences_max = int(df["absences"].min()), int(df["absences"].max())
 
-with st.sidebar.form("scenario_form"):
-    st.header("시나리오 입력")
+
+@st.dialog("예측할 학생 정보 입력", width="large")
+def open_student_dialog():
+    edit_row = st.session_state.student_row.copy()
     st.info(
         "포르투갈 중등학생 Student Performance Dataset 기준입니다. "
         "성적 G1, G2, G3는 한국식 100점 만점이 아니라 0~20점 척도입니다."
     )
-    st.caption("입력값을 모두 설정한 뒤 예측하기 버튼을 눌러주세요.")
 
-    st.subheader("학교생활 정보")
-    row["age"] = st.number_input(
-        f"나이 ({age_min}~{age_max}세)",
-        min_value=age_min,
-        max_value=age_max,
-        value=int(row["age"]),
-        step=1,
-    )
-    row["studytime"] = st.selectbox(
-        "주간 공부시간 (1~4단계)",
-        options=[1, 2, 3, 4],
-        format_func=lambda x: {
-            1: "1: 2시간 미만",
-            2: "2: 2~5시간",
-            3: "3: 5~10시간",
-            4: "4: 10시간 이상",
-        }[x],
-        index=1,
-    )
-    row["failures"] = st.number_input(
-        f"과거 낙제 횟수 ({failures_min}~{failures_max}회)",
-        min_value=failures_min,
-        max_value=failures_max,
-        value=int(row["failures"]),
-        step=1,
-    )
-    row["absences"] = st.number_input(
-        f"결석일수 ({absences_min}~{absences_max}일)",
-        min_value=absences_min,
-        max_value=absences_max,
-        value=int(row["absences"]),
-        step=1,
-    )
+    with st.form("student_input_form"):
+        left, right = st.columns(2)
 
-    st.subheader("생활 정보")
-    row["health"] = select_scale(
-        "건강상태 (1~5단계, 1: 매우 나쁨 / 5: 매우 좋음)",
-        {1: "매우 나쁨", 2: "나쁨", 3: "보통", 4: "좋음", 5: "매우 좋음"},
-        default=int(row["health"]),
-    )
-    row["famrel"] = select_scale(
-        "가족관계 (1~5단계, 1: 매우 나쁨 / 5: 매우 좋음)",
-        {1: "매우 나쁨", 2: "나쁨", 3: "보통", 4: "좋음", 5: "매우 좋음"},
-        default=int(row["famrel"]),
-    )
-    row["freetime"] = select_scale(
-        "자유시간 (1~5단계, 1: 매우 적음 / 5: 매우 많음)",
-        {1: "매우 적음", 2: "적음", 3: "보통", 4: "많음", 5: "매우 많음"},
-        default=int(row["freetime"]),
-    )
-    row["goout"] = select_scale(
-        "외출 빈도 (1~5단계, 1: 매우 낮음 / 5: 매우 높음)",
-        {1: "매우 낮음", 2: "낮음", 3: "보통", 4: "높음", 5: "매우 높음"},
-        default=int(row["goout"]),
-    )
-    row["internet"] = st.radio("인터넷 사용 가능 여부 (yes/no)", ["yes", "no"], horizontal=True, index=0)
-    row["higher"] = st.radio("진학 의향 (yes/no)", ["yes", "no"], horizontal=True, index=0)
+        with left:
+            st.subheader("학교생활 정보")
+            edit_row["age"] = st.number_input(
+                f"나이 ({age_min}~{age_max}세)",
+                min_value=age_min,
+                max_value=age_max,
+                value=int(edit_row["age"]),
+                step=1,
+            )
+            edit_row["studytime"] = st.selectbox(
+                "주간 공부시간 (1~4단계)",
+                options=[1, 2, 3, 4],
+                format_func=lambda x: {
+                    1: "1: 2시간 미만",
+                    2: "2: 2~5시간",
+                    3: "3: 5~10시간",
+                    4: "4: 10시간 이상",
+                }[x],
+                index=[1, 2, 3, 4].index(int(edit_row["studytime"])),
+            )
+            edit_row["failures"] = st.number_input(
+                f"과거 낙제 횟수 ({failures_min}~{failures_max}회)",
+                min_value=failures_min,
+                max_value=failures_max,
+                value=int(edit_row["failures"]),
+                step=1,
+            )
+            edit_row["absences"] = st.number_input(
+                f"결석일수 ({absences_min}~{absences_max}일)",
+                min_value=absences_min,
+                max_value=absences_max,
+                value=int(edit_row["absences"]),
+                step=1,
+            )
 
-    st.subheader("과거 성적 정보")
-    st.caption("G1, G2는 포르투갈 학생 성적 데이터 기준 0~20점 척도입니다.")
-    row["G1"] = st.number_input("G1 1차 성적 (0~20점)", min_value=0, max_value=20, value=int(row["G1"]), step=1)
-    row["G2"] = st.number_input("G2 2차 성적 (0~20점)", min_value=0, max_value=20, value=int(row["G2"]), step=1)
+            st.subheader("과거 성적 정보")
+            st.caption("G1, G2는 포르투갈 학생 성적 데이터 기준 0~20점 척도입니다.")
+            edit_row["G1"] = st.number_input("G1 1차 성적 (0~20점)", min_value=0, max_value=20, value=int(edit_row["G1"]), step=1)
+            edit_row["G2"] = st.number_input("G2 2차 성적 (0~20점)", min_value=0, max_value=20, value=int(edit_row["G2"]), step=1)
 
-    submitted = st.form_submit_button("예측하기", use_container_width=True)
+        with right:
+            st.subheader("생활 정보")
+            edit_row["health"] = select_scale(
+                "건강상태 (1~5단계, 1: 매우 나쁨 / 5: 매우 좋음)",
+                {1: "매우 나쁨", 2: "나쁨", 3: "보통", 4: "좋음", 5: "매우 좋음"},
+                default=int(edit_row["health"]),
+            )
+            edit_row["famrel"] = select_scale(
+                "가족관계 (1~5단계, 1: 매우 나쁨 / 5: 매우 좋음)",
+                {1: "매우 나쁨", 2: "나쁨", 3: "보통", 4: "좋음", 5: "매우 좋음"},
+                default=int(edit_row["famrel"]),
+            )
+            edit_row["freetime"] = select_scale(
+                "자유시간 (1~5단계, 1: 매우 적음 / 5: 매우 많음)",
+                {1: "매우 적음", 2: "적음", 3: "보통", 4: "많음", 5: "매우 많음"},
+                default=int(edit_row["freetime"]),
+            )
+            edit_row["goout"] = select_scale(
+                "외출 빈도 (1~5단계, 1: 매우 낮음 / 5: 매우 높음)",
+                {1: "매우 낮음", 2: "낮음", 3: "보통", 4: "높음", 5: "매우 높음"},
+                default=int(edit_row["goout"]),
+            )
+            edit_row["internet"] = st.radio(
+                "인터넷 사용 가능 여부 (yes/no)",
+                ["yes", "no"],
+                horizontal=True,
+                index=["yes", "no"].index(str(edit_row["internet"])),
+            )
+            edit_row["higher"] = st.radio(
+                "진학 의향 (yes/no)",
+                ["yes", "no"],
+                horizontal=True,
+                index=["yes", "no"].index(str(edit_row["higher"])),
+            )
+
+        submitted = st.form_submit_button("예측하기", use_container_width=True)
+        if submitted:
+            st.session_state.student_row = edit_row
+            st.rerun()
 
 input_df = pd.DataFrame([row], columns=x_train.columns)
 pred_score = float(regression_model.predict(input_df)[0])
@@ -295,83 +320,92 @@ stat_cols[1].metric("평균 G3", f"{g3_mean:.2f}점")
 stat_cols[2].metric("최다 그룹", "보통")
 
 st.write("")
-st.subheader("예측 결과")
-st.markdown(
-    f"""
-    <div class="panel result-main">
-        <div class="result-label">현재 입력값 기준 예측 결과</div>
-        <div class="result-value">최종 성적 G3 {format_score(pred_score)}</div>
-        <p style="font-size:1.2rem; font-weight:700; margin:0.6rem 0 0.2rem;">{group_title}</p>
-        <p class="small-note">{group_detail}</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
+button_cols = st.columns([1.2, 1, 2.8])
+with button_cols[0]:
+    if st.button("예측할 학생 정보 입력", type="primary", use_container_width=True):
+        open_student_dialog()
+
+st.write("")
+st.subheader("입력값 요약")
+summary = pd.DataFrame(
+    [
+        ["나이", row["age"]],
+        ["주간 공부시간", row["studytime"]],
+        ["과거 낙제 횟수", row["failures"]],
+        ["결석일수", row["absences"]],
+        ["건강상태", row["health"]],
+        ["가족관계", row["famrel"]],
+        ["자유시간", row["freetime"]],
+        ["외출 빈도", row["goout"]],
+        ["인터넷 사용 가능 여부", row["internet"]],
+        ["진학 의향", row["higher"]],
+        ["G1 1차 성적", row["G1"]],
+        ["G2 2차 성적", row["G2"]],
+    ],
+    columns=["항목", "입력값"],
 )
-
-metric_cols = st.columns(3)
-metric_cols[0].metric("예측 G3", f"{pred_score:.1f}", f"{score_delta:+.1f} vs 평균")
-metric_cols[1].metric("학업 수준", pred_group)
-metric_cols[2].metric("사용 모델", "Model B")
-
-st.markdown(
-    f"""
-    <div class="insight-box">
-    <strong>한 줄 해석:</strong> 현재 조건에서는 G3가 {pred_score:.1f}점으로 예측되며,
-    학업 수준은 <strong>{pred_group}</strong> 그룹입니다. G1, G2 과거 성적을 함께 쓰는 Model B 기준 결과입니다.
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
+st.dataframe(summary, use_container_width=True, hide_index=True)
+st.caption("성적 변수 G1, G2, G3는 한국식 100점 만점이 아니라 원본 데이터셋의 0~20점 척도입니다.")
 
 reg_result = load_result_table(REGRESSION_RESULT_PATH)
 clf_result = load_result_table(CLASSIFICATION_RESULT_PATH)
 
 st.write("")
-st.subheader("모델 성능 요약")
-if reg_result is not None and clf_result is not None:
-    best_reg = reg_result.sort_values(["RMSE", "MAE"], ascending=True).iloc[0]
-    best_clf = clf_result.sort_values(["F1", "Accuracy"], ascending=False).iloc[0]
+tab_result, tab_model, tab_data = st.tabs(["예측 결과", "모델 비교", "데이터 정보"])
+
+with tab_result:
+    st.subheader("예측 결과")
     st.markdown(
         f"""
-        <div class="panel">
-            <p><strong>회귀 최고 모델</strong>: {best_reg['Model']}</p>
-            <p class="small-note">RMSE {best_reg['RMSE']:.3f} / MAE {best_reg['MAE']:.3f} / R2 {best_reg['R2']:.3f}</p>
-            <hr>
-            <p><strong>분류 최고 모델</strong>: {best_clf['Model']}</p>
-            <p class="small-note" style="margin-bottom:0;">
-            Accuracy {best_clf['Accuracy']:.3f} / Precision {best_clf['Precision']:.3f} /
-            Recall {best_clf['Recall']:.3f} / F1 {best_clf['F1']:.3f}
-            </p>
+        <div class="panel result-main">
+            <div class="result-label">현재 입력값 기준 예측 결과</div>
+            <div class="result-value">최종 성적 G3 {format_score(pred_score)}</div>
+            <p style="font-size:1.2rem; font-weight:700; margin:0.6rem 0 0.2rem;">{group_title}</p>
+            <p class="small-note">{group_detail}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
-else:
-    st.warning("모델 성능 결과 파일을 찾을 수 없습니다.")
 
-st.caption("상세 성능 비교표는 아래 '모델 비교' 탭에서 확인할 수 있습니다.")
+    metric_cols = st.columns(3)
+    metric_cols[0].metric("예측 G3", f"{pred_score:.1f}", f"{score_delta:+.1f} vs 평균")
+    metric_cols[1].metric("학업 수준", pred_group)
+    metric_cols[2].metric("사용 모델", "Model B")
 
-
-tab_summary, tab_model, tab_data = st.tabs(["예측 요약", "모델 비교", "데이터 정보"])
-
-with tab_summary:
-    st.subheader("입력값 요약")
-    summary = pd.DataFrame(
-        [
-            ["나이", row["age"]],
-            ["주간 공부시간", row["studytime"]],
-            ["결석일수", row["absences"]],
-            ["건강상태", row["health"]],
-            ["가족관계", row["famrel"]],
-            ["외출 빈도", row["goout"]],
-            ["G1 1차 성적", row["G1"]],
-            ["G2 2차 성적", row["G2"]],
-        ],
-        columns=["항목", "입력값"],
+    st.markdown(
+        f"""
+        <div class="insight-box">
+        <strong>한 줄 해석:</strong> 현재 조건에서는 G3가 {pred_score:.1f}점으로 예측되며,
+        학업 수준은 <strong>{pred_group}</strong> 그룹입니다. G1, G2 과거 성적을 함께 쓰는 Model B 기준 결과입니다.
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    st.dataframe(summary, use_container_width=True, hide_index=True)
-    st.caption("성적 변수 G1, G2, G3는 한국식 100점 만점이 아니라 원본 데이터셋의 0~20점 척도입니다.")
+
+    st.write("")
+    st.subheader("모델 성능 요약")
+    if reg_result is not None and clf_result is not None:
+        best_reg = reg_result.sort_values(["RMSE", "MAE"], ascending=True).iloc[0]
+        best_clf = clf_result.sort_values(["F1", "Accuracy"], ascending=False).iloc[0]
+        st.markdown(
+            f"""
+            <div class="panel">
+                <p><strong>회귀 최고 모델</strong>: {best_reg['Model']}</p>
+                <p class="small-note">RMSE {best_reg['RMSE']:.3f} / MAE {best_reg['MAE']:.3f} / R2 {best_reg['R2']:.3f}</p>
+                <hr>
+                <p><strong>분류 최고 모델</strong>: {best_clf['Model']}</p>
+                <p class="small-note" style="margin-bottom:0;">
+                Accuracy {best_clf['Accuracy']:.3f} / Precision {best_clf['Precision']:.3f} /
+                Recall {best_clf['Recall']:.3f} / F1 {best_clf['F1']:.3f}
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.warning("모델 성능 결과 파일을 찾을 수 없습니다.")
+
+    st.caption("상세 성능 비교표는 '모델 비교' 탭에서 확인할 수 있습니다.")
 
 with tab_model:
     st.subheader("모델 비교 핵심")
