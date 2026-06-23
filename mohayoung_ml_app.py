@@ -74,10 +74,41 @@ def default_row(df: pd.DataFrame) -> dict:
     return row
 
 
-def load_result_table(path: Path) -> pd.DataFrame | None:
-    if not path.exists():
-        return None
-    return pd.read_csv(path).drop_duplicates()
+def default_regression_result() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Model": ["LinearRegression_A", "LinearRegression_B", "KNNRegression_A", "KNNRegression_B"],
+            "MAE": [2.156382, 0.765060, 2.275385, 1.556923],
+            "MSE": [8.189784, 1.475909, 9.066154, 4.646769],
+            "RMSE": [2.861780, 1.214870, 3.011005, 2.155637],
+            "R2": [0.160170, 0.848651, 0.070302, 0.523492],
+        }
+    )
+
+
+def default_classification_result() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "Model": [
+                "LogisticRegression_A",
+                "LogisticRegression_B",
+                "KNNClassifier_A",
+                "KNNClassifier_B",
+                "SVM_A",
+                "SVM_B",
+            ],
+            "Accuracy": [0.669231, 0.869231, 0.584615, 0.715385, 0.661538, 0.823077],
+            "Precision": [0.643905, 0.869617, 0.560769, 0.740321, 0.649559, 0.849212],
+            "Recall": [0.669231, 0.869231, 0.584615, 0.715385, 0.661538, 0.823077],
+            "F1": [0.636895, 0.869091, 0.545359, 0.686088, 0.554978, 0.799388],
+        }
+    )
+
+
+def load_result_table(path: Path, fallback: pd.DataFrame) -> pd.DataFrame:
+    if path.exists():
+        return pd.read_csv(path).drop_duplicates()
+    return fallback
 
 
 def format_score(score: float) -> str:
@@ -327,28 +358,31 @@ with button_cols[0]:
 
 st.write("")
 st.subheader("입력값 요약")
-summary = pd.DataFrame(
-    [
-        ["나이", row["age"]],
-        ["주간 공부시간", row["studytime"]],
-        ["과거 낙제 횟수", row["failures"]],
-        ["결석일수", row["absences"]],
-        ["건강상태", row["health"]],
-        ["가족관계", row["famrel"]],
-        ["자유시간", row["freetime"]],
-        ["외출 빈도", row["goout"]],
-        ["인터넷 사용 가능 여부", row["internet"]],
-        ["진학 의향", row["higher"]],
-        ["G1 1차 성적", row["G1"]],
-        ["G2 2차 성적", row["G2"]],
-    ],
-    columns=["항목", "입력값"],
-)
-st.dataframe(summary, use_container_width=True, hide_index=True)
+summary_items = [
+    ("나이", f"{row['age']}세"),
+    ("공부시간", f"{row['studytime']}단계"),
+    ("낙제 횟수", f"{row['failures']}회"),
+    ("결석일수", f"{row['absences']}일"),
+    ("건강상태", f"{row['health']}단계"),
+    ("가족관계", f"{row['famrel']}단계"),
+    ("자유시간", f"{row['freetime']}단계"),
+    ("외출 빈도", f"{row['goout']}단계"),
+    ("인터넷", row["internet"]),
+    ("진학 의향", row["higher"]),
+    ("G1", f"{row['G1']}점"),
+    ("G2", f"{row['G2']}점"),
+]
+for start in range(0, len(summary_items), 6):
+    cols = st.columns(6)
+    for col, (label, value) in zip(cols, summary_items[start : start + 6]):
+        with col:
+            with st.container(border=True):
+                st.caption(label)
+                st.markdown(f"**{value}**")
 st.caption("성적 변수 G1, G2, G3는 한국식 100점 만점이 아니라 원본 데이터셋의 0~20점 척도입니다.")
 
-reg_result = load_result_table(REGRESSION_RESULT_PATH)
-clf_result = load_result_table(CLASSIFICATION_RESULT_PATH)
+reg_result = load_result_table(REGRESSION_RESULT_PATH, default_regression_result())
+clf_result = load_result_table(CLASSIFICATION_RESULT_PATH, default_classification_result())
 
 st.write("")
 tab_result, tab_model, tab_data = st.tabs(["예측 결과", "모델 비교", "데이터 정보"])
